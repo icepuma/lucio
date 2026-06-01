@@ -106,12 +106,14 @@ impl LocalState {
 
     /// Compute the next `Profile N` directory name, **never reusing** a number.
     ///
-    /// The name is allocated strictly above the highest `Profile N` seen on disk,
-    /// in `info_cache`, and in Chromium's `profile.profiles_created` counter.
-    /// Reusing a freed (just-deleted) number is unsafe while Vivaldi is running:
-    /// it nukes a deleted profile's directory on a background thread, so
-    /// recreating that directory races with the deletion and the clone can be
-    /// wiped. Allocating above the maximum sidesteps that race entirely.
+    /// The name is allocated strictly above the highest `Profile N` seen across:
+    /// the on-disk directory listing, `info_cache`, Chromium's
+    /// `profile.profiles_created` counter, and lucio's own persisted high-water
+    /// mark ([`read_high_water`]). The high-water mark is the load-bearing piece:
+    /// deleting a profile lowers the on-disk maximum, but a reused number would
+    /// race with Vivaldi nuking that profile's directory on a background thread
+    /// (corrupting the clone), so the persisted mark guarantees the number keeps
+    /// climbing even across deletions.
     #[must_use]
     pub fn next_profile_dir(&self, user_data_dir: &Utf8Path) -> String {
         let registered: HashSet<String> = self.profiles().into_iter().map(|p| p.dir).collect();
@@ -127,8 +129,13 @@ impl LocalState {
             .max()
             .unwrap_or(0);
         let max_on_disk = max_profile_number_on_disk(user_data_dir);
+        let high_water = read_high_water(user_data_dir);
 
-        let mut n = counter.max(max_registered + 1).max(max_on_disk + 1).max(1);
+        let mut n = counter
+            .max(max_registered + 1)
+            .max(max_on_disk + 1)
+            .max(high_water + 1)
+            .max(1);
         loop {
             let dir = format!("Profile {n}");
             if !registered.contains(&dir) && !user_data_dir.join(&dir).exists() {
@@ -270,6 +277,34 @@ fn max_profile_number_on_disk(user_data_dir: &Utf8Path) -> u64 {
         .unwrap_or(0)
 }
 
+/// File holding lucio's monotonic "highest profile number ever allocated" for a
+/// user-data directory.
+const HIGH_WATER_FILE: &str = ".lucio-profile-counter";
+
+/// Read lucio's persisted high-water mark (0 if absent or unreadable).
+#[must_use]
+pub fn read_high_water(user_data_dir: &Utf8Path) -> u64 {
+    std::fs::read_to_string(user_data_dir.join(HIGH_WATER_FILE).as_std_path())
+        .ok()
+        .and_then(|text| text.trim().parse().ok())
+        .unwrap_or(0)
+}
+
+/// Record that the `Profile N` directory `profile_dir` was allocated.
+///
+/// Raises the persisted high-water mark so the number is never reused — even
+/// after the profile is deleted. Best-effort: write failures are ignored, since
+/// the next allocation still falls back to the on-disk maximum.
+pub fn bump_high_water(user_data_dir: &Utf8Path, profile_dir: &str) {
+    let Some(n) = dir_number(profile_dir) else {
+        return;
+    };
+    if n > read_high_water(user_data_dir) {
+        let path = user_data_dir.join(HIGH_WATER_FILE);
+        let _ = util::write_atomic(&path, n.to_string().as_bytes());
+    }
+}
+
 /// Get a child object by `key`, creating an empty one if absent.
 fn ensure_object<'a>(
     parent: &'a mut Map<String, Value>,
@@ -353,6 +388,29 @@ mod tests {
             st.next_profile_dir(Utf8Path::new("/nonexistent")),
             "Profile 4"
         );
+    }
+
+    #[test]
+    fn next_dir_respects_persisted_high_water() {
+        let tmp = tempfile::tempdir().unwrap();
+        let udd = Utf8Path::from_path(tmp.path()).unwrap();
+        // Profile 20 was allocated earlier (and maybe since deleted): the next
+        // dir must still climb above it, never reusing 4..=20.
+        bump_high_water(udd, "Profile 20");
+        let st = state(sample());
+        assert_eq!(st.next_profile_dir(udd), "Profile 21");
+    }
+
+    #[test]
+    fn high_water_only_increases() {
+        let tmp = tempfile::tempdir().unwrap();
+        let udd = Utf8Path::from_path(tmp.path()).unwrap();
+        bump_high_water(udd, "Profile 10");
+        assert_eq!(read_high_water(udd), 10);
+        bump_high_water(udd, "Profile 7"); // lower → ignored
+        assert_eq!(read_high_water(udd), 10);
+        bump_high_water(udd, "Profile 15");
+        assert_eq!(read_high_water(udd), 15);
     }
 
     #[test]

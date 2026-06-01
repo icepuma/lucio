@@ -157,6 +157,11 @@ impl Vivaldi {
         }
 
         let new_dir = state.next_profile_dir(&self.user_data_dir);
+        if !opts.dry_run {
+            // Reserve the number immediately so it is never reused, even if the
+            // user deletes this profile later (which would lower the on-disk max).
+            local_state::bump_high_water(&self.user_data_dir, &new_dir);
+        }
         let dst_dir = self.user_data_dir.join(&new_dir);
 
         let report = clone::copy_template(&src_dir, &dst_dir, opts.dry_run)?;
