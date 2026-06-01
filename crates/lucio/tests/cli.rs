@@ -73,7 +73,7 @@ fn clone_creates_isolated_profile_and_registers_it() {
     let root = tmp.path();
 
     lucio(root)
-        .args(["clone", "Privat", "--name", "Work"])
+        .args(["clone", "Privat", "Work", "--execute"])
         .assert()
         .success();
 
@@ -113,13 +113,13 @@ fn clone_creates_isolated_profile_and_registers_it() {
 }
 
 #[test]
-fn dry_run_writes_nothing() {
+fn default_is_dry_run_and_writes_nothing() {
     let tmp = fixture();
     let root = tmp.path();
     let before = fs::read(root.join("Local State")).unwrap();
 
     lucio(root)
-        .args(["clone", "Privat", "--name", "Work", "--dry-run"])
+        .args(["clone", "Privat", "Work"])
         .assert()
         .success()
         .stdout(predicates::str::contains("Dry run"));
@@ -143,7 +143,7 @@ fn list_shows_registered_profiles() {
 fn clone_unknown_source_fails() {
     let tmp = fixture();
     lucio(tmp.path())
-        .args(["clone", "Nonexistent", "--name", "Work"])
+        .args(["clone", "Nonexistent", "Work"])
         .assert()
         .failure();
 }

@@ -25,9 +25,9 @@ Pre-built Linux/macOS binaries are attached to each
 ## Usage
 
 ```sh
-lucio list                                   # show existing profiles
-lucio clone "Privat" --name "Work"           # clone by name (or directory, e.g. "Profile 1")
-lucio clone "Privat" --name "Work" --dry-run # preview without writing
+lucio list                            # show existing profiles
+lucio clone "Privat" "Work"           # preview (dry run) cloning "Privat" into "Work"
+lucio clone "Privat" "Work" --execute # actually create the "Work" profile
 ```
 
 Add `--user-data-dir <PATH>` to target a non-default Vivaldi directory. Shell

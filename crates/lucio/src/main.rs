@@ -48,17 +48,19 @@ enum Command {
     /// options, but none of its cookies, passwords, history, autofill, sessions
     /// or bookmarks. If Vivaldi is running, the new profile is opened so the
     /// running instance registers it live (no restart).
+    ///
+    /// Previews by default (a dry run); pass `--execute` to actually create it.
     Clone {
         /// Source profile, by display name (case-insensitive) or directory name.
         source: String,
 
         /// Display name for the new profile.
-        #[arg(long)]
-        name: String,
+        target: String,
 
-        /// Show what would be copied without writing anything.
+        /// Actually create the profile. Without this, lucio only previews what
+        /// would be copied (a dry run).
         #[arg(long)]
-        dry_run: bool,
+        execute: bool,
     },
 
     /// Print a shell completion script to stdout (bash, zsh, fish, …).
@@ -85,9 +87,9 @@ fn main() -> Result<()> {
         Command::List => list(&vivaldi),
         Command::Clone {
             source,
-            name,
-            dry_run,
-        } => clone(&vivaldi, &source, &name, dry_run),
+            target,
+            execute,
+        } => clone(&vivaldi, &source, &target, execute),
         Command::Completions { .. } => unreachable!("handled before locating Vivaldi"),
     }
 }
@@ -143,26 +145,27 @@ fn list(vivaldi: &Vivaldi) -> Result<()> {
 /// `lucio clone` — copy first (safe while Vivaldi runs), then register: open the
 /// profile in a running Vivaldi (live, no restart), or write `Local State`
 /// directly when Vivaldi is closed.
-fn clone(vivaldi: &Vivaldi, source: &str, name: &str, dry_run: bool) -> Result<()> {
+fn clone(vivaldi: &Vivaldi, source: &str, name: &str, execute: bool) -> Result<()> {
     let opts = CloneOptions {
         source: source.to_owned(),
         new_name: name.to_owned(),
-        dry_run,
+        dry_run: !execute,
     };
 
     let staged = vivaldi
         .stage_clone(&opts)
         .with_context(|| format!("failed to copy profile {source:?}"))?;
 
-    if dry_run {
+    if !execute {
         println!(
-            "Dry run: would create {} ({:?}) from {source:?} by copying {} files.",
+            "Dry run — nothing written. Would create {} ({:?}) from {source:?} by copying {} files.",
             staged.new_dir, staged.new_name, staged.report.files,
         );
         println!(
             "Settings/extension entries: {}",
             staged.report.items.join(", ")
         );
+        println!("Re-run with --execute to create it.");
         return Ok(());
     }
 
