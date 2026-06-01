@@ -7,19 +7,19 @@ class Lucio < Formula
   on_macos do
     on_arm do
       url "https://github.com/icepuma/lucio/releases/download/v0.1.0/lucio-v0.1.0-aarch64-apple-darwin.tar.gz"
-      sha256 "0000000000000000000000000000000000000000000000000000000000000000"
+      sha256 "a1b726adbfb2bb2e86c7f2c670bd8808183282b55bc6b06505a90fca6b6d97d5"
     end
   end
 
   on_linux do
     on_arm do
       url "https://github.com/icepuma/lucio/releases/download/v0.1.0/lucio-v0.1.0-aarch64-unknown-linux-musl.tar.gz"
-      sha256 "0000000000000000000000000000000000000000000000000000000000000000"
+      sha256 "4d80f38503b70b985a146fd3e8b5fc4a7339e4f816c73e47de47bcd805d69400"
     end
 
     on_intel do
       url "https://github.com/icepuma/lucio/releases/download/v0.1.0/lucio-v0.1.0-x86_64-unknown-linux-musl.tar.gz"
-      sha256 "0000000000000000000000000000000000000000000000000000000000000000"
+      sha256 "587f1560ae87ed458d67c429faffd3db84dd45bbd007ff2ad287cb01b98bc5e9"
     end
   end
 
