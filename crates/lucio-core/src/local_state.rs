@@ -104,26 +104,34 @@ impl LocalState {
         profile::resolve(&profiles, query).cloned()
     }
 
-    /// Compute the next free `Profile N` directory name.
+    /// Compute the next `Profile N` directory name, **never reusing** a number.
     ///
-    /// Follows Chromium's `profile.profiles_created` counter, but guards against
-    /// collisions with directories already present on disk or in `info_cache`
-    /// (deletions leave gaps, so the counter alone is not collision-proof).
+    /// The name is allocated strictly above the highest `Profile N` seen on disk,
+    /// in `info_cache`, and in Chromium's `profile.profiles_created` counter.
+    /// Reusing a freed (just-deleted) number is unsafe while Vivaldi is running:
+    /// it nukes a deleted profile's directory on a background thread, so
+    /// recreating that directory races with the deletion and the clone can be
+    /// wiped. Allocating above the maximum sidesteps that race entirely.
     #[must_use]
     pub fn next_profile_dir(&self, user_data_dir: &Utf8Path) -> String {
+        let registered: HashSet<String> = self.profiles().into_iter().map(|p| p.dir).collect();
+
         let counter = self
             .profile_obj()
             .and_then(|p| p.get("profiles_created"))
             .and_then(Value::as_u64)
-            .unwrap_or(1)
-            .max(1);
+            .unwrap_or(0);
+        let max_registered = registered
+            .iter()
+            .filter_map(|dir| dir_number(dir))
+            .max()
+            .unwrap_or(0);
+        let max_on_disk = max_profile_number_on_disk(user_data_dir);
 
-        let existing: HashSet<String> = self.profiles().into_iter().map(|p| p.dir).collect();
-
-        let mut n = counter;
+        let mut n = counter.max(max_registered + 1).max(max_on_disk + 1).max(1);
         loop {
             let dir = format!("Profile {n}");
-            if !existing.contains(&dir) && !user_data_dir.join(&dir).exists() {
+            if !registered.contains(&dir) && !user_data_dir.join(&dir).exists() {
                 return dir;
             }
             n += 1;
@@ -249,6 +257,19 @@ fn dir_number(dir: &str) -> Option<u64> {
     dir.strip_prefix("Profile ").and_then(|n| n.parse().ok())
 }
 
+/// The highest `N` among `Profile N` directories physically present under
+/// `user_data_dir` (0 if none, or the directory cannot be read).
+fn max_profile_number_on_disk(user_data_dir: &Utf8Path) -> u64 {
+    std::fs::read_dir(user_data_dir.as_std_path())
+        .into_iter()
+        .flatten()
+        .filter_map(std::result::Result::ok)
+        .filter_map(|entry| entry.file_name().into_string().ok())
+        .filter_map(|name| dir_number(&name))
+        .max()
+        .unwrap_or(0)
+}
+
 /// Get a child object by `key`, creating an empty one if absent.
 fn ensure_object<'a>(
     parent: &'a mut Map<String, Value>,
@@ -307,6 +328,27 @@ mod tests {
     fn next_dir_skips_the_deleted_gap_via_counter() {
         let st = state(sample());
         // profiles_created == 4 and "Profile 4" is free → "Profile 4".
+        assert_eq!(
+            st.next_profile_dir(Utf8Path::new("/nonexistent")),
+            "Profile 4"
+        );
+    }
+
+    #[test]
+    fn next_dir_never_reuses_a_freed_lower_number() {
+        // "Profile 1"/"Profile 2" were deleted (only Default + Profile 3 remain)
+        // and the counter is stale-low — we must still allocate above the max
+        // (Profile 3), never reuse the freed Profile 1 or 2.
+        let root = serde_json::json!({
+            "profile": {
+                "info_cache": {
+                    "Default":   { "name": "Privat",     "metrics_bucket_index": 1 },
+                    "Profile 3": { "name": "Vattenfall", "metrics_bucket_index": 4 }
+                },
+                "profiles_created": 2
+            }
+        });
+        let st = state(root);
         assert_eq!(
             st.next_profile_dir(Utf8Path::new("/nonexistent")),
             "Profile 4"
