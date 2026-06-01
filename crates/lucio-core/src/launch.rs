@@ -13,7 +13,9 @@
 
 use std::process::{Command, Stdio};
 
-use camino::{Utf8Path, Utf8PathBuf};
+use camino::Utf8Path;
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+use camino::Utf8PathBuf;
 
 use crate::error::{Error, Result};
 
@@ -79,6 +81,7 @@ fn macos_executable(app_dir: &Utf8Path) -> Option<Utf8PathBuf> {
 }
 
 #[cfg(target_os = "linux")]
+#[allow(clippy::unnecessary_wraps, reason = "fallible on other targets")]
 fn base_command() -> Result<Command> {
     // Resolved via `PATH`; if absent, `spawn` fails and the caller falls back.
     Ok(Command::new("vivaldi"))
