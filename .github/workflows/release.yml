@@ -20,6 +20,10 @@ jobs:
   build:
     runs-on: ${{ matrix.runner }}
 
+    defaults:
+      run:
+        shell: bash
+
     strategy:
       fail-fast: false
       matrix:
@@ -28,31 +32,40 @@ jobs:
             runner: ubuntu-latest
             target: x86_64-unknown-linux-musl
             build_tool: zigbuild
+            binary_name: lucio
             smoke_test: "true"
           - archive_suffix: aarch64-unknown-linux-musl
             runner: ubuntu-latest
             target: aarch64-unknown-linux-musl
             build_tool: zigbuild
+            binary_name: lucio
             smoke_test: "false"
           - archive_suffix: aarch64-apple-darwin
             runner: macos-14
             target: aarch64-apple-darwin
             build_tool: cargo
+            binary_name: lucio
+            smoke_test: "true"
+          - archive_suffix: x86_64-pc-windows-msvc
+            runner: windows-latest
+            target: x86_64-pc-windows-msvc
+            build_tool: cargo
+            binary_name: lucio.exe
             smoke_test: "true"
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v6.0.2
 
       - name: Install Zig
         if: matrix.build_tool == 'zigbuild'
-        uses: mlugg/setup-zig@v2
+        uses: mlugg/setup-zig@v2.2.1
         with:
           version: 0.15.2
 
       - name: Install cargo-zigbuild
         if: matrix.build_tool == 'zigbuild'
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.81.1
         with:
           tool: cargo-zigbuild
 
@@ -71,11 +84,11 @@ jobs:
         run: cargo build --locked --release -p lucio --target "${{ matrix.target }}"
 
       - name: Inspect binary
-        run: file "./target/${{ matrix.target }}/release/lucio"
+        run: file "./target/${{ matrix.target }}/release/${{ matrix.binary_name }}"
 
       - name: Smoke test binary
         if: matrix.smoke_test == 'true'
-        run: ./target/${{ matrix.target }}/release/lucio --version
+        run: ./target/${{ matrix.target }}/release/${{ matrix.binary_name }} --version
 
       - name: Package release archive
         env:
@@ -85,12 +98,12 @@ jobs:
           package_dir="dist/${archive_root}"
 
           mkdir -p "$package_dir"
-          cp "./target/${{ matrix.target }}/release/lucio" "$package_dir/"
+          cp "./target/${{ matrix.target }}/release/${{ matrix.binary_name }}" "$package_dir/"
           cp README.md LICENSE "$package_dir/"
           tar -C dist -czf "dist/${archive_root}.tar.gz" "${archive_root}"
 
       - name: Upload archive artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: package-${{ matrix.archive_suffix }}
           path: dist/*.tar.gz
@@ -105,10 +118,10 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v6.0.2
 
       - name: Download release artifacts
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v8.0.1
         with:
           path: dist
           pattern: package-*
@@ -120,7 +133,7 @@ jobs:
           sha256sum *.tar.gz > SHA256SUMS
 
       - name: Create or update GitHub release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3.0.0
         with:
           fail_on_unmatched_files: true
           files: |
