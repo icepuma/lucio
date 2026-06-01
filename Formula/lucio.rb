@@ -1,25 +1,25 @@
 class Lucio < Formula
   desc "Clone Vivaldi profiles into isolated settings and extensions templates"
   homepage "https://github.com/icepuma/lucio"
-  version "0.1.0"
+  version "0.1.1"
   license "MIT"
 
   on_macos do
     on_arm do
-      url "https://github.com/icepuma/lucio/releases/download/v0.1.0/lucio-v0.1.0-aarch64-apple-darwin.tar.gz"
-      sha256 "a1b726adbfb2bb2e86c7f2c670bd8808183282b55bc6b06505a90fca6b6d97d5"
+      url "https://github.com/icepuma/lucio/releases/download/v0.1.1/lucio-v0.1.1-aarch64-apple-darwin.tar.gz"
+      sha256 "04e5ac1e74cc7760669a0e653b7e6254d23ecf3ac265f34b61e9065cb039d844"
     end
   end
 
   on_linux do
     on_arm do
-      url "https://github.com/icepuma/lucio/releases/download/v0.1.0/lucio-v0.1.0-aarch64-unknown-linux-musl.tar.gz"
-      sha256 "4d80f38503b70b985a146fd3e8b5fc4a7339e4f816c73e47de47bcd805d69400"
+      url "https://github.com/icepuma/lucio/releases/download/v0.1.1/lucio-v0.1.1-aarch64-unknown-linux-musl.tar.gz"
+      sha256 "b8935438c731fa05f9d54131e10244c54f6bf42f0e277f81472f2fa810493558"
     end
 
     on_intel do
-      url "https://github.com/icepuma/lucio/releases/download/v0.1.0/lucio-v0.1.0-x86_64-unknown-linux-musl.tar.gz"
-      sha256 "587f1560ae87ed458d67c429faffd3db84dd45bbd007ff2ad287cb01b98bc5e9"
+      url "https://github.com/icepuma/lucio/releases/download/v0.1.1/lucio-v0.1.1-x86_64-unknown-linux-musl.tar.gz"
+      sha256 "c20770cd8599342d304814a6621424da6228114f4cebdbfff43c2bfd3f8d9bab"
     end
   end
 
