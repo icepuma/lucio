@@ -1,0 +1,24 @@
+[graph]
+targets = []
+
+[licenses]
+allow = [
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "MIT",
+    "Unicode-3.0",
+    "Unlicense",
+]
+exceptions = [
+    # `option-ext` (pulled in via `dirs`) is the file-level weak-copyleft MPL.
+    { allow = ["MPL-2.0"], crate = "option-ext" },
+]
+
+[advisories]
+version = 2
+ignore = []
+
+[bans]
+multiple-versions = "allow"

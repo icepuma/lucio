@@ -1,0 +1,19 @@
+set shell := ["bash", "-c"]
+
+# List available recipes.
+default:
+    @just --list
+
+# Format, lint, test, doc and audit the workspace (the full CI gate).
+verify:
+    cargo fmt --all -- --check
+    cargo clippy --workspace --all-targets --all-features -- -D warnings -W clippy::pedantic -W clippy::nursery -W clippy::cargo -A clippy::multiple-crate-versions
+    cargo clippy --workspace --all-features --lib --bins -- -D clippy::unwrap_used -D clippy::expect_used -A clippy::multiple-crate-versions
+    cargo nextest run --workspace --all-features
+    RUSTDOCFLAGS="-D warnings" cargo doc --workspace --all-features --no-deps
+    cargo test --workspace --all-features --doc
+    cargo deny check
+
+# Apply rustfmt in place.
+fmt:
+    cargo fmt --all
