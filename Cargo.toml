@@ -7,7 +7,7 @@ edition = "2024"
 license = "MIT"
 publish = false
 rust-version = "1.96"
-version = "0.2.2"
+version = "0.3.0"
 authors = ["Stefan Ruzitschka <stefan@icepuma.dev>"]
 repository = "https://github.com/icepuma/lucio"
 homepage = "https://github.com/icepuma/lucio"
@@ -16,7 +16,7 @@ keywords = ["vivaldi", "chromium", "browser", "profile", "cli"]
 categories = ["command-line-utilities"]
 
 [workspace.dependencies]
-lucio-core = { path = "crates/lucio-core", version = "=0.2.2" }
+lucio-core = { path = "crates/lucio-core", version = "=0.3.0" }
 
 anyhow = "=1.0.102"
 assert_cmd = "=2.2.2"
