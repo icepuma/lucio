@@ -10,6 +10,7 @@ allow = [
     "MIT",
     "Unicode-3.0",
     "Unlicense",
+    "Zlib",
 ]
 exceptions = [
     # `option-ext` (pulled in via `dirs`) is the file-level weak-copyleft MPL.

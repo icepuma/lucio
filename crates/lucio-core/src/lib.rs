@@ -47,6 +47,9 @@ pub struct CloneOptions {
     pub source: String,
     /// Display name for the new profile.
     pub new_name: String,
+    /// Category ids (see [`manifest::CATEGORIES`]) to carry over. Empty means the
+    /// default isolated-template set ([`manifest::default_category_ids`]).
+    pub categories: Vec<String>,
     /// Plan the copy and report it without writing anything.
     pub dry_run: bool,
 }
@@ -164,7 +167,12 @@ impl Vivaldi {
         }
         let dst_dir = self.user_data_dir.join(&new_dir);
 
-        let report = clone::copy_template(&src_dir, &dst_dir, opts.dry_run)?;
+        let entries = if opts.categories.is_empty() {
+            manifest::default_entries()
+        } else {
+            manifest::entries_for(&opts.categories)
+        };
+        let report = clone::copy_template(&src_dir, &dst_dir, opts.dry_run, &entries)?;
         if !opts.dry_run {
             clone::sanitize_preferences(&dst_dir, &opts.new_name)?;
         }

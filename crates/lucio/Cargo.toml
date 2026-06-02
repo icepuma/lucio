@@ -21,6 +21,7 @@ path = "src/main.rs"
 lucio-core = { workspace = true }
 clap = { workspace = true }
 clap_complete = { workspace = true }
+ratatui = { workspace = true }
 anyhow = { workspace = true }
 camino = { workspace = true }
 tracing = { workspace = true }

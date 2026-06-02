@@ -9,6 +9,8 @@ use clap::{ArgAction, CommandFactory, Parser, Subcommand};
 use clap_complete::Shell;
 use lucio_core::{CloneOptions, CloneOutcome, CloneReport, StagedClone, Vivaldi};
 
+mod tui;
+
 /// How often to poll while waiting for Vivaldi to quit (wait-for-quit path).
 const POLL_INTERVAL: Duration = Duration::from_millis(750);
 /// Poll cadence/attempts while confirming a live registration after launching.
@@ -142,33 +144,56 @@ fn list(vivaldi: &Vivaldi) -> Result<()> {
     Ok(())
 }
 
-/// `lucio clone` — copy first (safe while Vivaldi runs), then register: open the
-/// profile in a running Vivaldi (live, no restart), or write `Local State`
-/// directly when Vivaldi is closed.
+/// `lucio clone` — interactively pick what to carry over (confirm creates), or,
+/// non-interactively, copy the default isolated set under the dry-run/`--execute`
+/// model.
 fn clone(vivaldi: &Vivaldi, source: &str, name: &str, execute: bool) -> Result<()> {
+    use std::io::IsTerminal;
+
+    let interactive = !execute && std::io::stdin().is_terminal() && std::io::stdout().is_terminal();
+
+    let categories = if interactive {
+        let Some(ids) = tui::select_categories().context("the carry-over selector failed")? else {
+            println!("Cancelled — nothing created.");
+            return Ok(());
+        };
+        ids
+    } else {
+        // Non-interactive: empty → lucio-core uses the default isolated set.
+        Vec::new()
+    };
+
+    // Confirming in the selector is the explicit go-ahead; otherwise `--execute`
+    // gates creation (dry run by default).
+    let create = interactive || execute;
+
     let opts = CloneOptions {
         source: source.to_owned(),
         new_name: name.to_owned(),
-        dry_run: !execute,
+        categories,
+        dry_run: !create,
     };
 
     let staged = vivaldi
         .stage_clone(&opts)
         .with_context(|| format!("failed to copy profile {source:?}"))?;
 
-    if !execute {
+    if !create {
         println!(
             "Dry run — nothing written. Would create {} ({:?}) from {source:?} by copying {} files.",
             staged.new_dir, staged.new_name, staged.report.files,
         );
-        println!(
-            "Settings/extension entries: {}",
-            staged.report.items.join(", ")
-        );
+        println!("Entries: {}", staged.report.items.join(", "));
         println!("Re-run with --execute to create it.");
         return Ok(());
     }
 
+    finish_create(vivaldi, staged)
+}
+
+/// Register a staged clone: open it in a running Vivaldi (live, no restart), or
+/// write `Local State` directly when Vivaldi is closed.
+fn finish_create(vivaldi: &Vivaldi, staged: StagedClone) -> Result<()> {
     // Vivaldi closed: write Local State directly — deterministic, no window.
     if !vivaldi.is_running() {
         let outcome = vivaldi

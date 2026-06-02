@@ -18,7 +18,6 @@ use serde_json::{Map, Value};
 use walkdir::WalkDir;
 
 use crate::error::{Error, Result};
-use crate::manifest::COPY_ALLOWLIST;
 use crate::util;
 
 /// Per-directory files that are never copied: the `LevelDB` process lock and the
@@ -43,17 +42,22 @@ pub struct CloneReport {
     pub bytes: u64,
 }
 
-/// Copy the allowlisted settings/extension files from `src_dir` to `dst_dir`.
+/// Copy the selected category `entries` from `src_dir` to `dst_dir`.
 ///
-/// Only entries in [`COPY_ALLOWLIST`] are copied, so personal data in the source
-/// profile is never duplicated. When `dry_run` is set, the plan is computed and
-/// returned but nothing is written.
+/// Only the named `entries` (profile file/dir names) are copied — anything else
+/// in the source profile is left behind. When `dry_run` is set, the plan is
+/// computed and returned but nothing is written.
 ///
 /// # Errors
 /// [`Error::SourceProfileMissing`] if `src_dir` is not a directory,
 /// [`Error::ProfileDirExists`] if `dst_dir` already exists, or [`Error::Io`] /
 /// [`Error::NonUtf8Path`] on filesystem problems.
-pub fn copy_template(src_dir: &Utf8Path, dst_dir: &Utf8Path, dry_run: bool) -> Result<CloneReport> {
+pub fn copy_template(
+    src_dir: &Utf8Path,
+    dst_dir: &Utf8Path,
+    dry_run: bool,
+    entries: &[&str],
+) -> Result<CloneReport> {
     if !src_dir.is_dir() {
         return Err(Error::SourceProfileMissing(src_dir.to_owned()));
     }
@@ -62,7 +66,7 @@ pub fn copy_template(src_dir: &Utf8Path, dst_dir: &Utf8Path, dry_run: bool) -> R
     }
 
     let mut report = CloneReport::default();
-    let mut plan = build_plan(src_dir, dst_dir, &mut report)?;
+    let mut plan = build_plan(src_dir, dst_dir, &mut report, entries)?;
 
     // Copy CURRENT pointer files last for snapshot-consistent LevelDB copies.
     plan.sort_by_key(|(src, _)| src.file_name() == Some(CURRENT_FILE));
@@ -103,14 +107,15 @@ pub fn copy_template(src_dir: &Utf8Path, dst_dir: &Utf8Path, dry_run: bool) -> R
     Ok(report)
 }
 
-/// Walk the allowlist and build the `(src_file, dst_file)` copy plan.
+/// Walk the selected `entries` and build the `(src_file, dst_file)` copy plan.
 fn build_plan(
     src_dir: &Utf8Path,
     dst_dir: &Utf8Path,
     report: &mut CloneReport,
+    entries: &[&str],
 ) -> Result<Vec<(Utf8PathBuf, Utf8PathBuf)>> {
     let mut plan = Vec::new();
-    for entry in COPY_ALLOWLIST {
+    for entry in entries {
         let src = src_dir.join(entry);
         if !src.exists() {
             continue;
@@ -142,8 +147,10 @@ fn build_plan(
 }
 
 /// Set the clone's display name and strip sign-in/account identity from its
-/// copied `Preferences`, so it starts signed out. A no-op if `Preferences` is
-/// absent.
+/// `Preferences`, so it starts signed out.
+///
+/// If `Preferences` was not copied (the `settings` category was deselected), a
+/// minimal one with just the name is created, so the chosen name always applies.
 ///
 /// # Errors
 /// [`Error::Io`] or [`Error::Json`] on read/parse/write failure.
@@ -163,11 +170,14 @@ fn edit_preferences(
     edit: impl FnOnce(&mut Map<String, Value>),
 ) -> Result<()> {
     let path = profile_dir.join("Preferences");
-    if !path.is_file() {
-        return Ok(());
-    }
-    let bytes = std::fs::read(path.as_std_path()).map_err(|e| Error::io(&path, e))?;
-    let mut root: Value = serde_json::from_slice(&bytes).map_err(|e| Error::json(&path, e))?;
+    // Start from the copied Preferences, or an empty object when `settings` was
+    // not carried over, so the display name is always written either way.
+    let mut root: Value = if path.is_file() {
+        let bytes = std::fs::read(path.as_std_path()).map_err(|e| Error::io(&path, e))?;
+        serde_json::from_slice(&bytes).map_err(|e| Error::json(&path, e))?
+    } else {
+        Value::Object(Map::new())
+    };
     if let Some(obj) = root.as_object_mut() {
         edit(obj);
     }
@@ -231,7 +241,8 @@ mod tests {
         std::fs::write(src.join("Login Data").as_std_path(), b"pw").unwrap();
 
         let dst = root.join("Profile 1");
-        let report = copy_template(&src, &dst, false).unwrap();
+        let entries = crate::manifest::default_entries();
+        let report = copy_template(&src, &dst, false, &entries).unwrap();
 
         assert!(dst.join("Preferences").exists());
         assert!(dst.join("Secure Preferences").exists());
@@ -258,7 +269,7 @@ mod tests {
         std::fs::create_dir_all(src.as_std_path()).unwrap();
         std::fs::create_dir_all(dst.as_std_path()).unwrap();
         assert!(matches!(
-            copy_template(&src, &dst, false).unwrap_err(),
+            copy_template(&src, &dst, false, &crate::manifest::default_entries()).unwrap_err(),
             Error::ProfileDirExists(_)
         ));
     }
@@ -280,5 +291,20 @@ mod tests {
         assert_eq!(root["profile"]["name"], "Work");
         assert_eq!(root["profile"]["is_using_default_name"], false);
         assert!(root.get("account_info").is_none());
+    }
+
+    #[test]
+    fn sanitize_creates_preferences_when_absent() {
+        // When `settings` is not carried over there is no Preferences file, but
+        // the chosen name must still be written so the profile is named.
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = Utf8Path::from_path(tmp.path()).unwrap();
+        assert!(!dir.join("Preferences").exists());
+
+        sanitize_preferences(dir, "Fresh").unwrap();
+
+        let bytes = std::fs::read(dir.join("Preferences").as_std_path()).unwrap();
+        let root: Value = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(root["profile"]["name"], "Fresh");
     }
 }

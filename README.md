@@ -3,10 +3,11 @@
 Create a new [Vivaldi](https://vivaldi.com) profile from an existing one, as an
 **isolated settings/extensions template**.
 
-The clone inherits the source profile's Vivaldi settings and its installed
-extensions (with their options), but **never** its cookies, passwords, history,
-autofill, sessions or bookmarks. It's a real in-app profile and — when Vivaldi is
-running — appears in the profile switcher live, with no restart.
+By default the clone inherits the source profile's Vivaldi settings and its
+installed extensions (with their options), but **none** of its cookies,
+passwords, history, autofill, sessions or bookmarks — an interactive checklist
+lets you opt extra categories in. It's a real in-app profile and — when Vivaldi
+is running — appears in the profile switcher live, with no restart.
 
 ## Install
 
@@ -26,9 +27,14 @@ Pre-built Linux/macOS binaries are attached to each
 
 ```sh
 lucio list                            # show existing profiles
-lucio clone "Privat" "Work"           # preview (dry run) cloning "Privat" into "Work"
-lucio clone "Privat" "Work" --execute # actually create the "Work" profile
+lucio clone "Privat" "Work"           # pick what to carry over, then create it
+lucio clone "Privat" "Work" --execute # skip the picker; create with the defaults
 ```
+
+In a terminal, `clone` opens an interactive checklist (Settings / Extensions /
+Extension options preselected; Bookmarks, History, Cookies, Passwords, … opt-in)
+— confirming creates the profile, Esc cancels. Outside a terminal (pipes/CI) it
+falls back to the default set with the usual dry-run-unless-`--execute` behaviour.
 
 Add `--user-data-dir <PATH>` to target a non-default Vivaldi directory. Shell
 completions: `lucio completions <bash|zsh|fish|elvish|powershell>` (Homebrew
@@ -37,10 +43,11 @@ installs them automatically).
 ## How it works
 
 Only the source profile is read, so cloning is safe while Vivaldi is open. lucio
-copies an [allowlist](crates/lucio-core/src/manifest.rs) of settings/extension
-files (never personal data), then registers the new profile — by opening it in a
-running Vivaldi (which registers it live via `--profile-directory`), or by writing
-`Local State` directly when Vivaldi is closed.
+copies the files of the [selected categories](crates/lucio-core/src/manifest.rs)
+(the defaults carry no personal data), then registers the new profile — by
+opening it in a running Vivaldi (which registers it live via
+`--profile-directory`), or by writing `Local State` directly when Vivaldi is
+closed.
 
 > Extension options (`chrome.storage`) are carried over; a few extensions keep
 > account/session state there, which comes along too.
