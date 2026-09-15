@@ -77,7 +77,6 @@ require_checksum() {
   fi
 }
 
-version="${tag#v}"
 darwin_arm64_archive="lucio-${tag}-aarch64-apple-darwin.tar.gz"
 linux_arm64_archive="lucio-${tag}-aarch64-unknown-linux-musl.tar.gz"
 linux_amd64_archive="lucio-${tag}-x86_64-unknown-linux-musl.tar.gz"
@@ -94,7 +93,6 @@ cat >"$formula_path" <<EOF
 class Lucio < Formula
   desc "Clone Vivaldi profiles into isolated settings and extensions templates"
   homepage "https://github.com/icepuma/lucio"
-  version "${version}"
   license "MIT"
 
   on_macos do

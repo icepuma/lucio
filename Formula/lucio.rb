@@ -1,7 +1,6 @@
 class Lucio < Formula
   desc "Clone Vivaldi profiles into isolated settings and extensions templates"
   homepage "https://github.com/icepuma/lucio"
-  version "0.3.0"
   license "MIT"
 
   on_macos do
