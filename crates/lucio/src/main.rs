@@ -224,7 +224,6 @@ fn finish_create(vivaldi: &Vivaldi, staged: StagedClone) -> Result<()> {
                     staged.new_name,
                 );
             }
-            Ok(())
         }
         Err(err) => {
             eprintln!(
@@ -233,9 +232,9 @@ fn finish_create(vivaldi: &Vivaldi, staged: StagedClone) -> Result<()> {
             );
             let outcome = wait_then_commit(vivaldi, staged)?;
             print_committed(vivaldi.user_data_dir(), &outcome);
-            Ok(())
         }
     }
+    Ok(())
 }
 
 /// Wait for Vivaldi to quit, then write the registration to `Local State`.

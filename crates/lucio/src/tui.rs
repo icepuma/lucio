@@ -87,9 +87,7 @@ impl Selection {
     /// Check everything, or clear everything if all are already checked.
     fn toggle_all(&mut self) {
         let all = self.checked.iter().all(|&c| c);
-        for flag in &mut self.checked {
-            *flag = !all;
-        }
+        self.checked.fill(!all);
     }
 
     /// Restore the preselected (default) set.

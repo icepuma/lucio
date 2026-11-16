@@ -264,7 +264,7 @@ mod tests {
 
     #[test]
     fn entries_for_ignores_unknown_ids() {
-        assert!(entries_for(&["nope".to_owned()]).is_empty());
+        assert_eq!(entries_for(&["nope".to_owned()]), [] as [&str; 0]);
     }
 
     #[test]

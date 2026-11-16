@@ -6,31 +6,28 @@ resolver = "3"
 edition = "2024"
 license = "MIT"
 publish = false
-rust-version = "1.96"
+rust-version = "1.100"
 version = "0.3.0"
 authors = ["Stefan Ruzitschka <stefan@icepuma.dev>"]
 repository = "https://github.com/icepuma/lucio"
-homepage = "https://github.com/icepuma/lucio"
-description = "Create new Vivaldi profiles based on existing ones as isolated settings/extensions templates."
 keywords = ["vivaldi", "chromium", "browser", "profile", "cli"]
 categories = ["command-line-utilities"]
 
 [workspace.dependencies]
 lucio-core = { path = "crates/lucio-core", version = "=0.3.0" }
 
-anyhow = "=1.0.103"
+anyhow = "=1.0.104"
 assert_cmd = "=2.2.2"
-camino = { version = "=1.2.2", features = ["serde1"] }
-clap = { version = "=4.6.1", features = ["derive", "wrap_help"] }
-clap_complete = "=4.6.5"
-dirs = "=6.0.0"
-indicatif = "=0.18.4"
+camino = { version = "=1.2.6", features = ["serde1"] }
+clap = { version = "=4.6.7", features = ["derive", "wrap_help"] }
+clap_complete = "=4.6.11"
+dirs = "=7.0.0"
+indicatif = "=0.18.6"
 predicates = "=3.1.4"
-ratatui = "=0.30.0"
-serde = { version = "=1.0.228", features = ["derive"] }
-serde_json = { version = "=1.0.150", features = ["preserve_order"] }
+ratatui = "=0.30.2"
+serde_json = { version = "=1.0.154", features = ["preserve_order"] }
 tempfile = "=3.27.0"
-thiserror = "=2.0.18"
+thiserror = "=2.0.21"
 tracing = "=0.1.44"
 tracing-subscriber = { version = "=0.3.23", features = ["env-filter"] }
 walkdir = "=2.5.0"

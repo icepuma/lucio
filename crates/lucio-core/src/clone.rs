@@ -123,7 +123,7 @@ fn build_plan(
         report.items.push((*entry).to_owned());
 
         if !src.is_dir() {
-            plan.push((src.clone(), dst_dir.join(entry)));
+            plan.push((src, dst_dir.join(entry)));
             continue;
         }
 
